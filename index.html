@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>지구 환경의 다양성과 지속 가능한 지도</title>
+  <link
+    rel="stylesheet"
+    href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+    crossorigin=""
+  />
+  <style>
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+    }
+    header {
+      background-color: #fff;
+      padding: 15px 10px;
+      text-align: center;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+    h2 {
+      margin: 0;
+      font-size: 1.5em;
+      color: #333;
+    }
+    #marker-counts {
+      margin-top: 8px;
+      font-size: 0.9em;
+      color: #666;
+    }
+    #map {
+      height: 90vh;
+      width: 100%;
+    }
+    .popup-image {
+      max-width: 250px;
+      max-height: 150px;
+      display: block;
+      margin-top: 5px;
+      border-radius: 5px;
+    }
+    #addMarkerForm {
+      position: absolute;
+      top: 60px;
+      right: 10px;
+      background: white;
+      padding: 10px;
+      border-radius: 6px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+      z-index: 1000;
+      width: 240px;
+      font-size: 14px;
+    }
+    #addMarkerForm label {
+      display: block;
+      margin-bottom: 4px;
+      font-weight: 600;
+    }
+    #addMarkerForm input, #addMarkerForm select {
+      width: 100%;
+      padding: 5px;
+      margin-bottom: 8px;
+      box-sizing: border-box;
+    }
+    #addMarkerForm button {
+      width: 100%;
+      padding: 6px;
+      background-color: #28a745;
+      border: none;
+      color: white;
+      font-weight: bold;
+      cursor: pointer;
+      border-radius: 4px;
+    }
+    #addMarkerForm button:hover {
+      background-color: #218838;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h2>지구 환경의 다양성과 지속 가능한 지도</h2>
+    <div id="marker-counts">
+      문화유산: <span id="count-cultural">0</span> |
+      국립공원: <span id="count-national">0</span> |
+      천연기념물: <span id="count-natural">0</span>
+    </div>
+  </header>
+
+  <div id="map"></div>
+
+  <!-- 마커 추가 폼 -->
+  <form id="addMarkerForm">
+    <label for="category">카테고리</label>
+    <select id="category" required>
+      <option value="">선택하세요</option>
+      <option value="cultural">문화유산</option>
+      <option value="national_park">국립공원</option>
+      <option value="natural_monument">천연기념물</option>
+    </select>
+
+    <label for="name">이름</label>
+    <input type="text" id="name" placeholder="장소 이름" required />
+
+    <label for="lat">위도 (lat)</label>
+    <input type="number" id="lat" step="any" placeholder="위도" required />
+
+    <label for="lng">경도 (lng)</label>
+    <input type="number" id="lng" step="any" placeholder="경도" required />
+
+    <label for="imageUrl">사진 URL (선택)</label>
+    <input type="url" id="imageUrl" placeholder="https://example.com/image.jpg" />
+
+    <button type="submit">마커 추가하기</button>
+  </form>
+
+  <script
+    src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+    crossorigin=""
+  ></script>
+  <script>
+    const map = L.map("map").setView([20, 0], 2);
+
+    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+      maxZoom: 19,
+      attribution: "© OpenStreetMap contributors",
+    }).addTo(map);
+
+    const customIcons = {
+      cultural: L.divIcon({
+        className: "custom-icon",
+        html:
+          '<div style="width:14px;height:14px;background:red;border-radius:50%;border:2px solid white"></div>',
+        iconSize: [20, 20],
+      }),
+      national_park: L.divIcon({
+        className: "custom-icon",
+        html:
+          '<div style="width:14px;height:14px;background:green;border-radius:50%;border:2px solid white"></div>',
+        iconSize: [20, 20],
+      }),
+      natural_monument: L.divIcon({
+        className: "custom-icon",
+        html:
+          '<div style="width:14px;height:14px;background:gold;border-radius:50%;border:2px solid white"></div>',
+        iconSize: [20, 20],
+      }),
+    };
+
+    const markerGroups = {
+      cultural: L.layerGroup().addTo(map),
+      national_park: L.layerGroup().addTo(map),
+      natural_monument: L.layerGroup().addTo(map),
+    };
+
+    // 초기 여행지 데이터 (콤보에서 제외한 콜로세움 등은 빼고)
+    const culturalSites = [
+      {
+        name: "마추픽추",
+        lat: -13.1631,
+        lng: -72.545,
+        imageUrl:
+          "https://upload.wikimedia.org/wikipedia/commons/e/eb/Machu_Picchu%2C_Peru.jpg",
+      },
+      {
+        name: "기자 피라미드",
+        lat: 29.9792,
+        lng: 31.1342,
+        imageUrl:
+          "https://upload.wikimedia.org/wikipedia/commons/e/e3/Kheops-Pyramid.jpg",
+      },
+      {
+        name: "앙코르 와트",
+        lat: 13.4125,
+        lng: 103.8667,
+        imageUrl:
+          "https://upload.wikimedia.org/wikipedia/commons/a/a6/Angkor_Wat_temple.jpg",
+      },
+      {
+        name: "시레토코 반도",
+        lat: 43.8698,
+        lng: 145.1172,
+        imageUrl:
+          "https://upload.wikimedia.org/wikipedia/commons/f/fb/Shiretoko_Goko_lake_panorama_Hokkaido_Japan_2016.jpg",
+      },
+      {
+        name: "갈라파고스 제도",
+        lat: -0.9538,
+        lng: -90.9656,
+        imageUrl:
+          "https://upload.wikimedia.org/wikipedia/commons/1/11/Galapagos_Islands_Marine_Life.jpg",
+      },
+      {
+        name: "아야 소피아",
+        lat: 41.0086,
+        lng: 28.9802,
+        imageUrl:
+          "https://upload.wikimedia.org/wikipedia/commons/0/0d/Aya_Sophia_Mars_2013.jpg",
+      },
+    ];
+
+    const nationalParks = [
+      {
+        name: "옐로스톤 국립공원",
+        lat: 44.428,
+        lng: -110.5885,
+        imageUrl:
+          "https://upload.wikimedia.org/wikipedia/commons/6/6b/Old_Faithful_Geyser_2011.jpg",
+      },
+      {
+        name: "세렝게티 국립공원",
+        lat: -2.3333,
+        lng: 34.8333,
+        imageUrl:
+          "https://upload.wikimedia.org/wikipedia/commons/4/48/Serengeti_Lion.JPG",
+      },
+      {
+        name: "반프 국립공원",
+        lat: 51.4968,
+        lng: -115.9281,
+        imageUrl:
+          "https://upload.wikimedia.org/wikipedia/commons/f/f0/Banff_National_Park_11.jpg",
+      },
+      {
+        name: "토레스 델 파이네",
+        lat: -50.9423,
+        lng: -73.4068,
+        imageUrl:
+          "https://upload.wikimedia.org/wikipedia/commons/7/79/Torres_del_Paine_2005.jpg",
+      },
+      {
+        name: "후지하코네이즈 국립공원",
+        lat: 35.3606,
+        lng: 138.7274,
+        imageUrl:
+          "https://upload.wikimedia.org/wikipedia/commons/1/12/Mount_Fuji_from_Hakone_01.jpg",
+      },
+      {
+        name: "쟈스퍼 국립공원",
+        lat: 52.8734,
+        lng: -117.9543,
+        imageUrl:
+          "https://upload.wikimedia.org/wikipedia/commons/0/00/Jasper_national_park_canada.jpg",
+      },
+      {
+        name: "왕립 국립공원",
+        lat: -34.0784,
+        lng: 151.0579,
+        imageUrl:
+          "https://upload.wikimedia.org/wikipedia/commons/9/9c/Royal_National_Park_Entrance.jpg",
+      },
+      {
+        name: "호이안 국립공원",
+        lat: 15.8794,
+        lng: 108.335,
+        imageUrl:
+          "https://upload.wikimedia.org/wikipedia/commons/f/f1/Hoian_national_park_vietnam.jpg",
+      },
+      {
+        name: "갈라파고스 국립공원",
+        lat: -0.9538,
+        lng: -90.9656,
+        imageUrl:
+          "https://upload.wikimedia.org/wikipedia/commons/a/ab/Galapagos_Islands_-_Charles_Darwin_Research_Station.jpg",
+      },
+      {
+        name: "크루거 국립공원",
+        lat: -23.9884,
+        lng: 31.5547,
+        imageUrl:
+          "https://upload.wikimedia.org/wikipedia/commons/6/63/Kruger_National_Park_Lion.jpg",
+      },
+      {
+        name: "그레이트 베이슨 국립공원",
+        lat: 38.9872,
+        lng: -114.2513,
+        imageUrl:
+          "https://upload.wikimedia.org/wikipedia/commons/d/d4/Great_Basin_National_Park_Wheeler_Peak_Summer_2020.jpg",
+      },
+    ];
+
+    const naturalMonuments = [
+      {
+        name: "옐로스톤 간헐천",
+        lat: 44.4605,
+        lng: -110.8281,
+        imageUrl:
+          "https://upload.wikimedia.org/wikipedia/commons/0/07/Old_Faithful_Geyser_-_Yellowstone_NP.JPG",
+      },
+      {
+        name: "빅토리아 폭포",
+        lat: -17.9243,
+        lng: 25.8567,
+        imageUrl:
+          "https://upload.wikimedia.org/wikipedia/commons/8/8b/Victoria_Falls_from_the_air.jpg",
+      },
+      {
+        name: "호수 바칼라르",
+        lat: 20.5706,
+        lng: -100.2244,
+        imageUrl:
+          "https://upload.wikimedia.org/wikipedia/commons/6/69/Bacalar_Mexico_-_Lagoon_of_seven_colors.jpg",
+      },
+      {
+        name: "몬테베르데 구름숲 보호구역",
+        lat: 10.2751,
+        lng: -84.7996,
+        imageUrl:
+          "https://upload.wikimedia.org/wikipedia/commons/e/e6/Monteverde_Cloud_Forest_Reserve%2C_Costa_Rica.jpg",
+      },
+      {
+        name: "그랜드 캐년",
+        lat: 36.1069,
+        lng: -112.1129,
+        imageUrl:
+          "https://upload.wikimedia.org/wikipedia/commons/a/a0/Grand_Canyon_view_from_Pima_Point_2010.jpg",
+      },
+      {
+        name: "울룰루(에어즈 록)",
+        lat: -25.345,
+        lng: 131.036,
+        imageUrl:
+          "https://upload.wikimedia.org/wikipedia/commons/6/60/Uluru_Australia_01_11_2012_img1.jpg",
+      },
+      {
+        name: "알프스 산맥",
+        lat: 46.8876,
+        lng: 9.657,
+        imageUrl:
+          "https://upload.wikimedia.org/wikipedia/commons/7/79/Mountain_Ranges_of_the_Alps.jpg",
+      },
+    ];
+
+    // 각 카테고리별 데이터 저장
+    const dataStore = {
+      cultural: [...culturalSites],
+      national_park: [...nationalParks],
+      natural_monument: [...naturalMonuments],
+    };
+
+    function addMarkers(category, data, icon) {
+      data.forEach(({ name, lat, lng, imageUrl }) => {
+        const marker = L.marker([lat, lng], { icon }).addTo(markerGroups[category]);
+        const popupContent = `<b>${name}</b><br/>` + 
+          (imageUrl ? `<img class="popup-image" src="${imageUrl}" alt="${name}" />` : "");
+        marker.bindPopup(popupContent);
+      });
+    }
+
+    // 초기 마커 추가
+    Object.keys(dataStore).forEach(category => {
+      addMarkers(category, dataStore[category], customIcons[category]);
+    });
+
+    // 마커 개수 갱신 함수
+    function updateCounts() {
+      document.getElementById("count-cultural").textContent = dataStore.cultural.length;
+      document.getElementById("count-national").textContent = dataStore.national_park.length;
+      document.getElementById("count-natural").textContent = dataStore.natural_monument.length;
+    }
+    updateCounts();
+
+    // 마커 추가 폼 처리
+    const form = document.getElementById("addMarkerForm");
+    form.addEventListener("submit", (e) => {
+      e.preventDefault();
+
+      const category = document.getElementById("category").value;
+      const name = document.getElementById("name").value.trim();
+      const lat = parseFloat(document.getElementById("lat").value);
+      const lng = parseFloat(document.getElementById("lng").value);
+      const imageUrl = document.getElementById("imageUrl").value.trim();
+
+      if (!category || !name || isNaN(lat) || isNaN(lng)) {
+        alert("모든 필수 항목을 올바르게 입력해주세요.");
+        return;
+      }
+
+      const newMarkerData = { name, lat, lng, imageUrl };
+
+      // 데이터 저장
+      dataStore[category].push(newMarkerData);
+
+      // 마커 추가
+      addMarkers(category, [newMarkerData], customIcons[category]);
+
+      // 개수 갱신
+      updateCounts();
+
+      // 폼 초기화
+      form.reset();
+    });
+  </script>
+</body>
+</html>
